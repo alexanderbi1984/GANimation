@@ -77,7 +77,7 @@ class Train:
                 self._display_terminal(iter_start_time, i_epoch, i_train_batch, do_visuals)
                 self._last_print_time = time.time()
 
-            # display visualizer
+            # # display visualizer
             if do_visuals:
                 self._display_visualizer_train(self._total_steps)
                 self._display_visualizer_val(i_epoch, self._total_steps)
@@ -95,7 +95,7 @@ class Train:
         self._tb_visualizer.print_current_train_errors(i_epoch, i_train_batch, self._iters_per_epoch, errors, t, visuals_flag)
 
     def _display_visualizer_train(self, total_steps):
-        self._tb_visualizer.display_current_results(self._model.get_current_visuals(), total_steps, is_train=True)
+        # self._tb_visualizer.display_current_results(self._model.get_current_visuals(), total_steps, is_train=True)
         self._tb_visualizer.plot_scalars(self._model.get_current_errors(), total_steps, is_train=True)
         self._tb_visualizer.plot_scalars(self._model.get_current_scalars(), total_steps, is_train=True)
 
@@ -117,14 +117,18 @@ class Train:
             errors = self._model.get_current_errors()
 
             # store current batch errors
-            for k, v in errors.iteritems():
+            # for k, v in errors.iteritems():
+            for k, v in errors.items():
                 if k in val_errors:
                     val_errors[k] += v
                 else:
                     val_errors[k] = v
 
         # normalize errors
-        for k in val_errors.iterkeys():
+        # for k in val_errors.iterkeys():
+        for k,v in val_errors.items():
+            # print(f"what the k is {k}")
+            # print(f"type of the k is {type(k)}")
             val_errors[k] /= self._opt.num_iters_validate
 
         # visualize

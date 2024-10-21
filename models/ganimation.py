@@ -64,7 +64,11 @@ class GANimation(BaseModel):
 
     def _init_prefetch_inputs(self):
         self._input_real_img = self._Tensor(self._opt.batch_size, 3, self._opt.image_size, self._opt.image_size)
+        # self._input_real_img = torch.empty((self._opt.batch_size, 3, self._opt.image_size, self._opt.image_size),
+        #                                    device='cuda')
+
         self._input_real_cond = self._Tensor(self._opt.batch_size, self._opt.cond_nc)
+        # self._input_real_cond = torch.empty((self._opt.batch_size, self._opt.cond_nc), device='cuda')
         self._input_desired_cond = self._Tensor(self._opt.batch_size, self._opt.cond_nc)
         self._input_real_img_path = None
         self._input_real_cond_path = None
@@ -94,6 +98,31 @@ class GANimation(BaseModel):
         self._loss_d_cond = Variable(self._Tensor([0]))
         self._loss_d_fake = Variable(self._Tensor([0]))
         self._loss_d_gp = Variable(self._Tensor([0]))
+    # def _init_losses(self):
+    #     # Define loss functions
+    #     self._criterion_cycle = torch.nn.L1Loss().cuda()
+    #     self._criterion_D_cond = torch.nn.MSELoss().cuda()
+    #
+    #     # Initialize losses G
+    #     self._loss_g_fake = torch.tensor(0., device='cuda')
+    #     self._loss_g_cond = torch.tensor(0., device='cuda')
+    #     self._loss_g_cyc = torch.tensor(0., device='cuda')
+    #     self._loss_g_mask_1 = torch.tensor(0., device='cuda')
+    #     self._loss_g_mask_2 = torch.tensor(0., device='cuda')
+    #     self._loss_g_idt = torch.tensor(0., device='cuda')
+    #     self._loss_g_masked_fake = torch.tensor(0., device='cuda')
+    #     self._loss_g_masked_cond = torch.tensor(0., device='cuda')
+    #     self._loss_g_mask_1_smooth = torch.tensor(0., device='cuda')
+    #     self._loss_g_mask_2_smooth = torch.tensor(0., device='cuda')
+    #     self._loss_rec_real_img_rgb = torch.tensor(0., device='cuda')
+    #     self._loss_g_fake_imgs_smooth = torch.tensor(0., device='cuda')
+    #     self._loss_g_unmasked_rgb = torch.tensor(0., device='cuda')
+    #
+    #     # Initialize losses D
+    #     self._loss_d_real = torch.tensor(0., device='cuda')
+    #     self._loss_d_cond = torch.tensor(0., device='cuda')
+    #     self._loss_d_fake = torch.tensor(0., device='cuda')
+    #     self._loss_d_gp = torch.tensor(0., device='cuda')
 
     def set_input(self, input):
         self._input_real_img.resize_(input['real_img'].size()).copy_(input['real_img'])
@@ -103,9 +132,11 @@ class GANimation(BaseModel):
         self._input_real_img_path = input['real_img_path']
 
         if len(self._gpu_ids) > 0:
-            self._input_real_img = self._input_real_img.cuda(self._gpu_ids[0], async=True)
-            self._input_real_cond = self._input_real_cond.cuda(self._gpu_ids[0], async=True)
-            self._input_desired_cond = self._input_desired_cond.cuda(self._gpu_ids[0], async=True)
+            #The async argument was deprecated in PyTorch 1.6.0 and removed in later versions.
+            #updated by Nan Bi
+            self._input_real_img = self._input_real_img.cuda(self._gpu_ids[0])
+            self._input_real_cond = self._input_real_cond.cuda(self._gpu_ids[0])
+            self._input_desired_cond = self._input_desired_cond.cuda(self._gpu_ids[0])
 
     def set_train(self):
         self._G.train()
@@ -122,10 +153,14 @@ class GANimation(BaseModel):
 
     def forward(self, keep_data_for_visuals=False, return_estimates=False):
         if not self._is_train:
-            # convert tensor to variables
-            real_img = Variable(self._input_real_img, volatile=True)
-            real_cond = Variable(self._input_real_cond, volatile=True)
-            desired_cond = Variable(self._input_desired_cond, volatile=True)
+            with torch.no_grad():  # Use this context to prevent gradient computation
+                real_img = self._input_real_img
+                real_cond = self._input_real_cond
+                desired_cond = self._input_desired_cond
+            # # convert tensor to variables
+            # real_img = Variable(self._input_real_img, volatile=True)
+            # real_cond = Variable(self._input_real_cond, volatile=True)
+            # desired_cond = Variable(self._input_desired_cond, volatile=True)
 
             # generate fake images
             fake_imgs, fake_img_mask = self._G.forward(real_img, desired_cond)
@@ -315,23 +350,25 @@ class GANimation(BaseModel):
                torch.sum(torch.abs(mat[:, :, :-1, :] - mat[:, :, 1:, :]))
 
     def get_current_errors(self):
-        loss_dict = OrderedDict([('g_fake', self._loss_g_fake.data[0]),
-                                 ('g_cond', self._loss_g_cond.data[0]),
-                                 ('g_mskd_fake', self._loss_g_masked_fake.data[0]),
-                                 ('g_mskd_cond', self._loss_g_masked_cond.data[0]),
-                                 ('g_cyc', self._loss_g_cyc.data[0]),
-                                 ('g_rgb', self._loss_rec_real_img_rgb.data[0]),
-                                 ('g_rgb_un', self._loss_g_unmasked_rgb.data[0]),
-                                 ('g_rgb_s', self._loss_g_fake_imgs_smooth.data[0]),
-                                 ('g_m1', self._loss_g_mask_1.data[0]),
-                                 ('g_m2', self._loss_g_mask_2.data[0]),
-                                 ('g_m1_s', self._loss_g_mask_1_smooth.data[0]),
-                                 ('g_m2_s', self._loss_g_mask_2_smooth.data[0]),
-                                 ('g_idt', self._loss_g_idt.data[0]),
-                                 ('d_real', self._loss_d_real.data[0]),
-                                 ('d_cond', self._loss_d_cond.data[0]),
-                                 ('d_fake', self._loss_d_fake.data[0]),
-                                 ('d_gp', self._loss_d_gp.data[0])])
+        loss_dict = OrderedDict([('g_fake', self._loss_g_fake.item()),
+                                 ('g_cond', self._loss_g_cond.item()),
+                                 # modified by Nan
+                                 # ('g_mskd_fake', self._loss_g_masked_fake.data[0]),
+                                 ('g_mskd_fake', self._loss_g_masked_fake.item()),
+                                 ('g_mskd_cond', self._loss_g_masked_cond.item()),
+                                 ('g_cyc', self._loss_g_cyc.item()),
+                                 ('g_rgb', self._loss_rec_real_img_rgb.item()),
+                                 ('g_rgb_un', self._loss_g_unmasked_rgb.item()),
+                                 ('g_rgb_s', self._loss_g_fake_imgs_smooth.item()),
+                                 ('g_m1', self._loss_g_mask_1.item()),
+                                 ('g_m2', self._loss_g_mask_2.item()),
+                                 ('g_m1_s', self._loss_g_mask_1_smooth.item()),
+                                 ('g_m2_s', self._loss_g_mask_2_smooth.item()),
+                                 ('g_idt', self._loss_g_idt.item()),
+                                 ('d_real', self._loss_d_real.item()),
+                                 ('d_cond', self._loss_d_cond.item()),
+                                 ('d_fake', self._loss_d_fake.item()),
+                                 ('d_gp', self._loss_d_gp.item())])
 
         return loss_dict
 

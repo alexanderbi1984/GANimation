@@ -34,9 +34,9 @@ class AusDataset(DatasetBase):
             real_cond = self._get_cond_by_id(sample_id)
 
             if real_img is None:
-                print 'error reading image %s, skipping sample' % sample_id
+                print('error reading image %s, skipping sample' % sample_id)
             if real_cond is None:
-                print 'error reading aus %s, skipping sample' % sample_id
+                print('error reading aus %s, skipping sample' % sample_id)
 
         desired_cond = self._generate_random_cond()
 
@@ -91,12 +91,17 @@ class AusDataset(DatasetBase):
         self._transform = transforms.Compose(transform_list)
 
     def _read_ids(self, file_path):
-        ids = np.loadtxt(file_path, delimiter='\t', dtype=np.str)
+        ids = np.loadtxt(file_path, delimiter='\t', dtype=str)
+        # print(ids)
+        # updated by Nan Bi
+        # ids = np.loadtxt(file_path, delimiter='\t', dtype=str)
         return [id[:-4] for id in ids]
 
     def _read_conds(self, file_path):
         with open(file_path, 'rb') as f:
-            return pickle.load(f)
+            # return pickle.load(f)
+    #updated by Nan Bi
+            return pickle.load(f, encoding='latin1')
 
     def _get_cond_by_id(self, id):
         if id in self._conds:
@@ -105,7 +110,7 @@ class AusDataset(DatasetBase):
             return None
 
     def _get_img_by_id(self, id):
-        filepath = os.path.join(self._imgs_dir, id+'.jpg')
+        filepath = os.path.join(self._imgs_dir, id+'.bmp')
         return cv_utils.read_cv2_img(filepath), filepath
 
     def _generate_random_cond(self):

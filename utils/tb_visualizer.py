@@ -23,7 +23,12 @@ class TBVisualizer:
 
     def display_current_results(self, visuals, it, is_train, save_visuals=False):
         for label, image_numpy in visuals.items():
+            # Debugging: Print shape and dtype
+            # print(f"Label: {label}, Image shape: {image_numpy.shape}, dtype: {image_numpy.dtype}")
             sum_name = '{}/{}'.format('Train' if is_train else 'Test', label)
+            # Nan try to transposing the image
+            image_numpy = np.transpose(image_numpy, (2, 0, 1))  # Change from (H, W, C) to (C, H, W)
+
             self._writer.add_image(sum_name, image_numpy, it)
 
             if save_visuals:
