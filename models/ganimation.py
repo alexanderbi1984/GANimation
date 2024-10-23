@@ -165,6 +165,7 @@ class GANimation(BaseModel):
             # generate fake images
             fake_imgs, fake_img_mask = self._G.forward(real_img, desired_cond)
             fake_img_mask = self._do_if_necessary_saturate_mask(fake_img_mask, saturate=self._opt.do_saturate_mask)
+            # here it is not the same as paper, the last term in paper is fake_imgs
             fake_imgs_masked = fake_img_mask * real_img + (1 - fake_img_mask) * fake_imgs
 
             rec_real_img_rgb, rec_real_img_mask = self._G.forward(fake_imgs_masked, real_cond)
